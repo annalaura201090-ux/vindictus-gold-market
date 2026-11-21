@@ -422,7 +422,42 @@ async function handleApi(request, env, url) {
       { "set-cookie": clearCookieHeader() }
     );
   }
+// DATA HARGA PAKET UNTUK PUBLIK
+if (path === "/api/products" && method === "GET") {
+  const result = await env.DB.prepare(`
+    SELECT server, package_amount, price_idr
+    FROM products
+    WHERE is_active = 1
+    ORDER BY server, package_amount
+  `).all();
 
+ return json(
+  { products: result.results || [] },
+  200,
+  {
+    "Access-Control-Allow-Origin": "https://vindictus-gold-market.pages.dev",
+    "Vary": "Origin"
+  }
+);
+}
+
+// DATA STOK GOLD UNTUK PUBLIK
+if (path === "/api/stock" && method === "GET") {
+  const result = await env.DB.prepare(`
+    SELECT server, available_gold
+    FROM stock
+    ORDER BY server
+  `).all();
+
+return json(
+  { stock: result.results || [] },
+  200,
+  {
+    "Access-Control-Allow-Origin": "https://vindictus-gold-market.pages.dev",
+    "Vary": "Origin"
+  }
+);
+}
   if (!path.startsWith("/api/admin/")) {
     return fail("API tidak ditemukan.", 404);
   }
