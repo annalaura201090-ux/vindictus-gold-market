@@ -74,15 +74,16 @@ label{font-size:13px;color:#cbd1dc}
 <section>
  <div class="notice">
  <b>Informasi transaksi</b><br>
- Harga, stok, rekening, QRIS, dan pengiriman belum diaktifkan.
- Semua pesanan masih berupa permintaan dan harus dikonfirmasi admin.
+ Harga dan stok ditampilkan berdasarkan data market.
+ Rekening, QRIS, dan pengiriman belum diaktifkan.
+ Semua pesanan masih berupa ringkasan permintaan dan harus dikonfirmasi admin.
  Jangan memberikan password atau kode OTP akun game.
  </div>
 </section>
 
 <footer>
  © 2026 Vindictus Gold Market<br>
-Independent fan project. Not affiliated with Nexon.
+ Independent fan project. Not affiliated with Nexon.
 </footer>
 
 <div class="modal" id="modal">
@@ -94,12 +95,7 @@ Independent fan project. Not affiliated with Nexon.
    <label>Nama karakter Vindictus</label>
    <input id="character" required>
    <label>Jumlah Gold</label>
-   <select id="amount">
-    <option>100 juta Gold</option>
-    <option>200 juta Gold</option>
-    <option>500 juta Gold</option>
-    <option>1 miliar Gold</option>
-   </select>
+   <select id="amount" required></select>
    <label>Kontak (Discord atau Email)</label>
    <input id="contact" required>
    <label>Metode pembayaran yang diinginkan</label>
@@ -116,25 +112,19 @@ Independent fan project. Not affiliated with Nexon.
 </div>
 
 <script>
-
 let server = "NA";
-let packageName = "";
 let productsData = [];
 let stockData = [];
-
 const API = "https://vindictus-gold-market.powerasepa.workers.dev";
 
 function formatGold(value) {
   const amount = Number(value);
-
   if (amount >= 1000000000) {
     return (amount / 1000000000).toLocaleString("id-ID") + " miliar Gold";
   }
-
   if (amount >= 1000000) {
     return (amount / 1000000).toLocaleString("id-ID") + " juta Gold";
   }
-
   return amount.toLocaleString("id-ID") + " Gold";
 }
 
@@ -147,9 +137,8 @@ function formatPrice(value) {
 }
 
 async function loadMarket() {
-  const productsBox = document.getElementById("products");
-
-  productsBox.innerHTML = "<p>Memuat harga dan stok Gold...</p>";
+  const box = document.getElementById("products");
+  box.innerHTML = "<p>Memuat harga dan stok Gold...</p>";
 
   try {
     const [productsResponse, stockResponse] = await Promise.all([
@@ -166,44 +155,27 @@ async function loadMarket() {
 
     productsData = productsResult.products || [];
     stockData = stockResult.stock || [];
-
     render();
-
   } catch (error) {
-    productsBox.innerHTML =
-      "<p>Data market belum dapat dimuat. Silakan coba beberapa saat lagi.</p>";
+    box.innerHTML = "<p>Data market belum dapat dimuat. Silakan coba beberapa saat lagi.</p>";
   }
 }
 
 function changeServer(s, button) {
   server = s;
-
-  document.querySelectorAll(".tab").forEach(x => {
-    x.classList.remove("active");
-  });
-
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
   button.classList.add("active");
-
   render();
 }
 
 function render() {
   const box = document.getElementById("products");
-
-  const items = productsData.filter(item =>
-    item.server === server
-  );
-
-  const stock = stockData.find(item =>
-    item.server === server
-  );
-
+  const items = productsData.filter(item => item.server === server);
+  const stock = stockData.find(item => item.server === server);
   const availableGold = Number(stock?.available_gold || 0);
 
   if (items.length === 0) {
-    box.innerHTML =
-      '<div class="card"><h3>' + server + ' Server</h3>' +
-      '<p class="muted">Belum ada paket Gold yang tersedia.</p></div>';
+    box.innerHTML = '<div class="card"><h3>' + server + ' Server</h3><p class="muted">Belum ada paket Gold yang tersedia.</p></div>';
     return;
   }
 
@@ -216,31 +188,21 @@ function render() {
         <div class="muted">${item.server} SERVER</div>
         <h3>${formatGold(amount)}</h3>
         <div class="price">${formatPrice(price)}</div>
-        <p class="muted">
-          Stok tersedia: ${formatGold(availableGold)}
-        </p>
-        <button class="btn"
-          onclick="openOrder('${formatGold(amount)}')">
-          PESAN SEKARANG
-        </button>
+        <p class="muted">Stok tersedia: ${formatGold(availableGold)}</p>
+        <button class="btn" onclick="openOrder('${formatGold(amount)}')">PESAN SEKARANG</button>
       </div>
     `;
   }).join("");
 }
 
-function openOrder(item) {
-  packageName = item;
-
+function openOrder(selectedPackage) {
   document.getElementById("selected").textContent =
-    "Server " + server + " • " + item;
+    "Server " + server + " • " + selectedPackage;
 
   const amountSelect = document.getElementById("amount");
-
   amountSelect.innerHTML = "";
 
-  const items = productsData.filter(item =>
-    item.server === server
-  );
+  const items = productsData.filter(item => item.server === server);
 
   items.forEach(item => {
     const option = document.createElement("option");
@@ -249,8 +211,7 @@ function openOrder(item) {
     amountSelect.appendChild(option);
   });
 
-  amountSelect.value = item;
-
+  amountSelect.value = selectedPackage;
   document.getElementById("modal").style.display = "flex";
   document.getElementById("result").style.display = "none";
 }
@@ -273,7 +234,6 @@ document.getElementById("orderForm").addEventListener("submit", function(e) {
     "Status: Menunggu konfirmasi admin.";
 
   const result = document.getElementById("result");
-
   result.style.display = "block";
   result.innerHTML =
     "<b>Ringkasan pesanan berhasil dibuat.</b><br><br>" +
