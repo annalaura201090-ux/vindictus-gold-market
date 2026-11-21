@@ -422,6 +422,115 @@ async function handleApi(request, env, url) {
       { "set-cookie": clearCookieHeader() }
     );
   }
+  // IZIN CORS UNTUK FORMULIR PESANAN
+if (path === "/api/orders" && method === "OPTIONS") {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "https://vindictus-gold-market.pages.dev",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Max-Age": "86400"
+    }
+  });
+}
+  // MEMBUAT PESANAN BARU DARI WEBSITE PUBLIK
+if (path === "/api/orders" && method === "POST") {
+  try {
+    if (
+      request.headers.get("Origin") !==
+      "https://vindictus-gold-market.pages.dev"
+    ) {
+      return fail("Asal permintaan tidak diizinkan.", 403);
+    }
+
+    const body = await readJson(request, 10000);
+
+    const server = normalizeServer(body.server);
+    const character = safeText(body.character_name, 40);
+    const contact = safeText(body.contact, 160);
+    const payment = safeText(body.payment_method, 30);
+    const notes = safeText(body.notes, 500);
+    const gold = Number(body.gold_amount);
+
+    if (!validServer(server)) {
+      return fail("Server tidak valid.");
+    }
+
+    if (!character || !contact) {
+      return fail("Nama karakter dan kontak wajib diisi.");
+    }
+
+    if (!Number.isSafeInteger(gold) || gold <= 0) {
+      return fail("Jumlah Gold tidak valid.");
+    }
+
+    if (!["Transfer bank", "QRIS"].includes(payment)) {
+      return fail("Metode pembayaran tidak valid.");
+    }
+
+    const product = await env.DB.prepare(
+      `SELECT price_idr
+       FROM products
+       WHERE server = ?
+       AND CAST(package_amount AS INTEGER) = ?
+       AND is_active = 1
+       LIMIT 1`
+    ).bind(server, gold).first();
+
+    if (!product) {
+      return fail("Paket Gold tidak tersedia.", 404);
+    }
+
+    const stock = await env.DB.prepare(
+      `SELECT available_gold
+       FROM stock
+       WHERE server = ?
+       LIMIT 1`
+    ).bind(server).first();
+
+    if (!stock || Number(stock.available_gold) < gold) {
+      return fail("Stok Gold tidak mencukupi.", 409);
+    }
+
+    const orderCode =
+      "VGM-" + Date.now() + "-" +
+      toBase64Url(randomBytes(5)).toUpperCase();
+
+    const created = nowIso();
+
+    await env.DB.prepare(
+      `INSERT INTO orders (
+        order_code, customer_name, character_name,
+        contact, server, gold_amount, total_price,
+        payment_method, status, notes,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`
+    ).bind(
+      orderCode,
+      character,
+      character,
+      contact,
+      server,
+      gold,
+      Number(product.price_idr),
+      payment,
+      notes,
+      created,
+      created
+    ).run();
+
+    return json({
+      ok: true,
+      message: "Pesanan berhasil disimpan.",
+      order_code: orderCode,
+      status: "pending"
+    }, 201);
+
+  } catch (error) {
+    return fail("Pesanan gagal disimpan.", 500);
+  }
+}
 // DATA HARGA PAKET UNTUK PUBLIK
 if (path === "/api/products" && method === "GET") {
   const result = await env.DB.prepare(`
@@ -673,7 +782,7 @@ return json(
       result = await env.DB.prepare(
         `SELECT order_code, customer_name, character_name,
         contact, server, gold_amount, total_price,
-        payment_method, payment_proof_url, status,
+        payment_method, payment_proof_url, status, notes,
         created_at, updated_at
         FROM orders
         WHERE status = ?
@@ -685,7 +794,7 @@ return json(
       result = await env.DB.prepare(
         `SELECT order_code, customer_name, character_name,
         contact, server, gold_amount, total_price,
-        payment_method, payment_proof_url, status,
+        payment_method, payment_proof_url, status, notes,
         created_at, updated_at
         FROM orders
         ORDER BY created_at DESC
@@ -763,6 +872,18 @@ export default {
     }
 
     const headers = new Headers(response.headers);
+
+    if (
+  url.pathname === "/api/orders" &&
+  request.headers.get("Origin") ===
+  "https://vindictus-gold-market.pages.dev"
+) {
+  headers.set(
+    "Access-Control-Allow-Origin",
+    "https://vindictus-gold-market.pages.dev"
+  );
+  headers.set("Vary", "Origin");
+}
 
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
