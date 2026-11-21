@@ -252,25 +252,40 @@ $('#logoutBtn').classList.remove('hidden');
 refreshAll();
 }
 
+
 $('#setupForm').addEventListener('submit',async e=>{
-e.preventDefault();
-const f=new FormData(e.currentTarget);
-try{
-await api('/api/admin/setup',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});
-e.currentTarget.reset();
-showDashboard();
-}catch(err){message($('#authMessage'),err.message)}
+  e.preventDefault();
+  const form=e.currentTarget;
+  const f=new FormData(form);
+  try{
+    await api('/api/admin/setup',{
+      method:'POST',
+      body:JSON.stringify(Object.fromEntries(f))
+    });
+    form.reset();
+    showDashboard();
+  }catch(err){
+    message($('#authMessage'),err.message);
+  }
 });
 
+
 $('#loginForm').addEventListener('submit',async e=>{
-e.preventDefault();
-const f=new FormData(e.currentTarget);
-try{
-await api('/api/admin/login',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});
-e.currentTarget.reset();
-showDashboard();
-}catch(err){message($('#authMessage'),err.message)}
+  e.preventDefault();
+  const form=e.currentTarget;
+  const f=new FormData(form);
+  try{
+    await api('/api/admin/login',{
+      method:'POST',
+      body:JSON.stringify(Object.fromEntries(f))
+    });
+    form.reset();
+    showDashboard();
+  }catch(err){
+    message($('#authMessage'),err.message);
+  }
 });
+
 
 $('#logoutBtn').addEventListener('click',async()=>{
 try{await api('/api/admin/logout',{method:'POST'})}
