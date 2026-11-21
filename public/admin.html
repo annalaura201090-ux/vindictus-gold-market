@@ -379,18 +379,29 @@ await loadProducts();
 });
 
 $('#productForm').addEventListener('submit',async e=>{
-e.preventDefault();
-const f=new FormData(e.currentTarget);
-const obj=Object.fromEntries(f);
-obj.price_idr=Number(obj.price_idr);
-obj.is_active=obj.is_active==='1';
-try{
-await api('/api/admin/products',{method:'POST',body:JSON.stringify(obj)});
-message($('#productMessage'),'Paket berhasil disimpan.',true);
-e.currentTarget.reset();
-e.currentTarget.elements.id.value='';
-await loadProducts();
-}catch(err){message($('#productMessage'),err.message)}
+  e.preventDefault();
+
+  const form = e.currentTarget;
+  const f = new FormData(form);
+  const obj = Object.fromEntries(f);
+
+  obj.price_idr = Number(obj.price_idr);
+  obj.is_active = obj.is_active === '1';
+
+  try {
+    await api('/api/admin/products',{
+      method:'POST',
+      body:JSON.stringify(obj)
+    });
+
+    message($('#productMessage'),'Paket berhasil disimpan.',true);
+    form.reset();
+    form.elements.id.value = '';
+    await loadProducts();
+
+  } catch(err) {
+    message($('#productMessage'),err.message);
+  }
 });
 
 $('#clearProduct').addEventListener('click',()=>{
