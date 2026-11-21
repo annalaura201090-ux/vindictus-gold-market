@@ -189,7 +189,7 @@ function render() {
         <h3>${formatGold(amount)}</h3>
         <div class="price">${formatPrice(price)}</div>
         <p class="muted">Stok tersedia: ${formatGold(availableGold)}</p>
-        <button class="btn" onclick="openOrder('${formatGold(amount)}')">PESAN SEKARANG</button>
+        <button class="btn" onclick="openOrder(${amount})">PESAN SEKARANG</button>
       </div>
     `;
   }).join("");
@@ -197,7 +197,7 @@ function render() {
 
 function openOrder(selectedPackage) {
   document.getElementById("selected").textContent =
-    "Server " + server + " • " + selectedPackage;
+    "Server " + server + " • " + formatGold(selectedPackage);
 
   const amountSelect = document.getElementById("amount");
   amountSelect.innerHTML = "";
@@ -207,11 +207,11 @@ function openOrder(selectedPackage) {
   items.forEach(item => {
     const option = document.createElement("option");
     option.textContent = formatGold(item.package_amount);
-    option.value = formatGold(item.package_amount);
+    option.value = Number(item.package_amount);
     amountSelect.appendChild(option);
   });
 
-  amountSelect.value = selectedPackage;
+  amountSelect.value = String(selectedPackage);
   document.getElementById("modal").style.display = "flex";
   document.getElementById("result").style.display = "none";
 }
@@ -220,28 +220,64 @@ function closeOrder() {
   document.getElementById("modal").style.display = "none";
 }
 
-document.getElementById("orderForm").addEventListener("submit", function(e) {
+document.getElementById("orderForm").addEventListener("submit", async function(e) {
   e.preventDefault();
 
-  const message =
-    "PERMINTAAN VINDICTUS GOLD MARKET\n" +
-    "Server: " + server + "\n" +
-    "Paket: " + document.getElementById("amount").value + "\n" +
-    "Karakter: " + document.getElementById("character").value + "\n" +
-    "Kontak: " + document.getElementById("contact").value + "\n" +
-    "Pembayaran: " + document.getElementById("payment").value + "\n" +
-    "Catatan: " + document.getElementById("notes").value + "\n" +
-    "Status: Menunggu konfirmasi admin.";
-
   const result = document.getElementById("result");
-  result.style.display = "block";
-  result.innerHTML =
-    "<b>Ringkasan pesanan berhasil dibuat.</b><br><br>" +
-    "<pre style='white-space:pre-wrap'></pre>" +
-    "<button class='btn' onclick='copyOrder()'>SALIN PESANAN</button>";
+  const button = this.querySelector('button[type="submit"]');
 
-  result.querySelector("pre").textContent = message;
-  window.currentOrder = message;
+  const orderData = {
+    server: server,
+    gold_amount: Number(document.getElementById("amount").value),
+    character_name: document.getElementById("character").value.trim(),
+    contact: document.getElementById("contact").value.trim(),
+    payment_method: document.getElementById("payment").value,
+    notes: document.getElementById("notes").value.trim()
+  };
+
+  button.disabled = true;
+  button.textContent = "MENGIRIM PESANAN...";
+
+  try {
+    const response = await fetch(API + "/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderData)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || "Pesanan gagal disimpan.");
+    }
+
+    const message =
+      "PERMINTAAN VINDICTUS GOLD MARKET\n" +
+      "Nomor Pesanan: " + data.order_code + "\n" +
+      "Server: " + server + "\n" +
+      "Paket: " + formatGold(orderData.gold_amount) + "\n" +
+      "Karakter: " + orderData.character_name + "\n" +
+      "Kontak: " + orderData.contact + "\n" +
+      "Pembayaran: " + orderData.payment_method + "\n" +
+      "Catatan: " + orderData.notes + "\n" +
+      "Status: Menunggu konfirmasi admin.";
+
+    result.innerHTML =
+      "<b>Pesanan berhasil disimpan!</b><br><br>" +
+      "<pre style='white-space:pre-wrap'></pre>" +
+      "<button class='btn' onclick='copyOrder()'>SALIN PESANAN</button>";
+
+    result.querySelector("pre").textContent = message;
+    result.style.display = "block";
+    window.currentOrder = message;
+
+  } catch (error) {
+    result.style.display = "block";
+    result.textContent = error.message || "Pesanan gagal dikirim.";
+  } finally {
+    button.disabled = false;
+    button.textContent = "BUAT RINGKASAN PESANAN";
+  }
 });
 
 function copyOrder() {
