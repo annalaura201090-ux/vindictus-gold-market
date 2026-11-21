@@ -1,0 +1,13 @@
+
+name = "vindictus-gold-market"
+main = "worker.js"
+compatibility_date = "2026-11-21"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vindictus-gold-market-db"
+database_id = "a6d7be23-4790-4ac3-b907-0480ae10aea1"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
