@@ -1,7 +1,7 @@
 
 const COOKIE_NAME = "__Host-vgm_admin";
 const SESSION_SECONDS = 60 * 60 * 8;
-const PBKDF2_ITERATIONS = 310000;
+const PBKDF2_ITERATIONS = 100000;
 const ALLOWED_SERVERS = new Set(["NA", "EU"]);
 const ALLOWED_STATUSES = new Set([
   "pending", "paid", "processing", "completed", "cancelled"
