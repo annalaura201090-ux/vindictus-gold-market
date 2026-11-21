@@ -1,0 +1,419 @@
+
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — Vindictus Gold Market</title>
+<style>
+:root{color-scheme:dark;--bg:#090d14;--panel:#141c28;--line:#2b3748;--gold:#e4bf69;--muted:#9ba8ba;--red:#ef7777;--green:#76d6a0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#f4f1e9;font:14px Arial,sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer;border:0;border-radius:8px;padding:11px 15px;background:var(--gold);color:#17130a;font-weight:700}
+button.secondary{background:#263244;color:#eef2f7;border:1px solid var(--line)}
+button.danger{background:#632d35;color:#fff}
+input,select{width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;background:#0b111a;color:#fff;margin:6px 0 14px}
+label{display:block;color:#c4ccd8;font-size:12px}
+header{padding:18px 5%;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+header strong{color:var(--gold);letter-spacing:1px}
+.wrap{max-width:1200px;margin:28px auto;padding:0 18px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:20px;margin-bottom:18px}
+.auth{max-width:440px;margin:7vh auto}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+.error{color:#ff9b9b;margin:10px 0}
+.success{color:var(--green);margin:10px 0}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.stat{background:#0c131e;border:1px solid var(--line);padding:16px;border-radius:10px}
+.stat b{display:block;font-size:27px;color:var(--gold);margin-top:8px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+.tabs button.active{background:var(--gold);color:#17130a}
+.tabs button:not(.active){background:#263244;color:#e7edf5}
+.section{display:none}
+.section.active{display:block}
+.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th,td{text-align:left;padding:11px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--gold);font-size:12px}
+td{font-size:13px}
+.pill{display:inline-block;padding:5px 8px;border-radius:20px;background:#263244}
+.actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.actions select{min-width:125px;width:auto;margin:0}
+.form-actions{display:flex;gap:8px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--muted);line-height:1.6}
+.order-meta{min-width:170px}
+.topline{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+@media(max-width:700px){
+.grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.row{grid-template-columns:1fr}
+header{align-items:flex-start;flex-direction:column}
+.wrap{margin:18px auto;padding:0 12px}
+.panel{padding:15px}
+}
+@media(max-width:420px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<strong>VINDICTUS GOLD MARKET · ADMIN</strong>
+<button id="logoutBtn" class="secondary hidden">Keluar</button>
+</header>
+<main class="wrap">
+<section id="authPanel" class="panel auth hidden">
+<h2 id="authTitle">Login Admin</h2>
+<p id="authIntro" class="muted">Masuk untuk mengelola pesanan, harga, dan stok.</p>
+<form id="setupForm" class="hidden">
+<label>ADMIN_SETUP_KEY (Secret Cloudflare)</label>
+<input name="setupKey" type="password" autocomplete="off" required>
+<label>Username Admin</label>
+<input name="username" minlength="3" maxlength="40" required autocomplete="username">
+<label>Password Admin (minimal 12 karakter)</label>
+<input name="password" type="password" minlength="12" maxlength="200" required autocomplete="new-password">
+<button type="submit">Buat Admin Pertama</button>
+<p class="hint">Form ini hanya aktif selama belum ada akun admin. Secret tidak disimpan di browser maupun database.</p>
+</form>
+<form id="loginForm">
+<label>Username</label>
+<input name="username" required autocomplete="username">
+<label>Password</label>
+<input name="password" type="password" required autocomplete="current-password">
+<button type="submit">Login</button>
+</form>
+<div id="authMessage" role="status"></div>
+</section>
+
+<section id="dashboard" class="hidden">
+<div class="topline">
+<div>
+<h1 style="margin-bottom:5px">Dashboard</h1>
+<div class="muted">Kelola transaksi Vindictus Gold Market.</div>
+</div>
+<button class="secondary" id="refreshBtn">Muat ulang</button>
+</div>
+
+<div class="grid" style="margin:20px 0">
+<div class="stat">Total pesanan<b id="sTotal">0</b></div>
+<div class="stat">Menunggu<b id="sPending">0</b></div>
+<div class="stat">Sudah dibayar<b id="sPaid">0</b></div>
+<div class="stat">Diproses<b id="sProcessing">0</b></div>
+<div class="stat">Selesai<b id="sCompleted">0</b></div>
+<div class="stat">Dibatalkan<b id="sCancelled">0</b></div>
+</div>
+
+<nav class="tabs">
+<button class="active" data-tab="orders">Pesanan</button>
+<button data-tab="products">Harga Paket</button>
+<button data-tab="stock">Stok Gold</button>
+</nav>
+
+<section id="tab-orders" class="section active panel">
+<div class="topline">
+<h2>Pesanan pelanggan</h2>
+<select id="orderFilter" style="max-width:190px;margin:0">
+<option value="">Semua status</option>
+<option>pending</option>
+<option>paid</option>
+<option>processing</option>
+<option>completed</option>
+<option>cancelled</option>
+</select>
+</div>
+<p class="hint">Status dapat diubah langsung pada setiap pesanan.</p>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Kode / Tanggal</th><th>Pelanggan / Karakter</th><th>Server / Gold</th><th>Kontak / Pembayaran</th><th>Total</th><th>Status</th><th>Aksi</th>
+</tr>
+</thead>
+<tbody id="ordersBody"><tr><td colspan="7">Memuat…</td></tr></tbody>
+</table>
+</div>
+</section>
+
+<section id="tab-products" class="section panel">
+<h2>Atur harga paket Gold</h2>
+<form id="productForm">
+<input type="hidden" name="id">
+<div class="row">
+<div>
+<label>Server</label>
+<select name="server">
+<option value="NA">North America (NA)</option>
+<option value="EU">Europe (EU)</option>
+</select>
+</div>
+<div>
+<label>Jumlah / nama paket Gold</label>
+<input name="package_amount" placeholder="Contoh: 100 juta Gold" required maxlength="80">
+</div>
+<div>
+<label>Harga (Rupiah)</label>
+<input name="price_idr" type="number" min="0" step="1" required>
+</div>
+<div>
+<label>Status paket</label>
+<select name="is_active">
+<option value="1">Aktif</option>
+<option value="0">Nonaktif</option>
+</select>
+</div>
+</div>
+<div class="form-actions">
+<button type="submit">Simpan Paket</button>
+<button type="button" class="secondary" id="clearProduct">Kosongkan Form</button>
+</div>
+<div id="productMessage"></div>
+</form>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Server</th><th>Paket</th><th>Harga</th><th>Status</th><th>Aksi</th></tr></thead>
+<tbody id="productsBody"></tbody>
+</table>
+</div>
+</section>
+
+<section id="tab-stock" class="section panel">
+<h2>Atur stok Gold</h2>
+<form id="stockForm">
+<div class="row">
+<div>
+<label>Server</label>
+<select name="server">
+<option value="NA">North America (NA)</option>
+<option value="EU">Europe (EU)</option>
+</select>
+</div>
+<div>
+<label>Stok tersedia (Gold)</label>
+<input name="available_gold" type="number" min="0" step="1" required>
+</div>
+</div>
+<button type="submit">Simpan Stok</button>
+<div id="stockMessage"></div>
+</form>
+<div class="grid" id="stockCards" style="margin-top:18px"></div>
+</section>
+</section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const money=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n||0));
+const proofLink=value=>{
+if(!value)return '';
+try{
+const u=new URL(String(value),location.origin);
+if(u.protocol!=='https:'&&u.protocol!=='http:')return '';
+return `<br><a target="_blank" rel="noopener noreferrer" href="${esc(u.href)}">Bukti pembayaran</a>`;
+}catch{return ''}
+};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function api(path,options={}){
+const res=await fetch(path,{credentials:'same-origin',...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});
+let data={};
+try{data=await res.json()}catch{}
+if(!res.ok)throw new Error(data.error||`Permintaan gagal (${res.status})`);
+return data;
+}
+function message(el,text,ok=false){
+el.className=ok?'success':'error';
+el.textContent=text;
+}
+
+async function start(){
+try{
+const status=await api('/api/admin/setup-status');
+$('#authPanel').classList.remove('hidden');
+if(status.setupRequired){
+$('#authTitle').textContent='Buat Admin Pertama';
+$('#authIntro').textContent='Pendaftaran satu kali. Siapkan Secret ADMIN_SETUP_KEY dari Cloudflare.';
+$('#setupForm').classList.remove('hidden');
+$('#loginForm').classList.add('hidden');
+}else{
+$('#authTitle').textContent='Login Admin';
+$('#setupForm').classList.add('hidden');
+$('#loginForm').classList.remove('hidden');
+}
+try{await api('/api/admin/me');showDashboard()}catch{}
+}catch(e){
+$('#authPanel').classList.remove('hidden');
+message($('#authMessage'),e.message);
+}
+}
+
+function showDashboard(){
+$('#authPanel').classList.add('hidden');
+$('#dashboard').classList.remove('hidden');
+$('#logoutBtn').classList.remove('hidden');
+refreshAll();
+}
+
+$('#setupForm').addEventListener('submit',async e=>{
+e.preventDefault();
+const f=new FormData(e.currentTarget);
+try{
+await api('/api/admin/setup',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});
+e.currentTarget.reset();
+showDashboard();
+}catch(err){message($('#authMessage'),err.message)}
+});
+
+$('#loginForm').addEventListener('submit',async e=>{
+e.preventDefault();
+const f=new FormData(e.currentTarget);
+try{
+await api('/api/admin/login',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});
+e.currentTarget.reset();
+showDashboard();
+}catch(err){message($('#authMessage'),err.message)}
+});
+
+$('#logoutBtn').addEventListener('click',async()=>{
+try{await api('/api/admin/logout',{method:'POST'})}
+finally{location.reload()}
+});
+
+async function refreshAll(){
+await Promise.all([loadStats(),loadOrders(),loadProducts(),loadStock()]);
+}
+
+async function loadStats(){
+const d=await api('/api/admin/dashboard');
+for(const [k,v] of Object.entries(d)){
+$('#s'+k[0].toUpperCase()+k.slice(1)).textContent=v;
+}
+}
+
+async function loadOrders(){
+const status=$('#orderFilter').value;
+const d=await api('/api/admin/orders'+(status?'?status='+encodeURIComponent(status):''));
+const body=$('#ordersBody');
+if(!d.orders.length){
+body.innerHTML='<tr><td colspan="7" class="muted">Belum ada pesanan.</td></tr>';
+return;
+}
+body.innerHTML=d.orders.map(o=>`<tr>
+<td class="order-meta"><b>${esc(o.order_code)}</b><br><span class="muted">${esc(o.created_at||'')}</span></td>
+<td>${esc(o.customer_name)}<br><span class="muted">${esc(o.character_name)}</span></td>
+<td><span class="pill">${esc(o.server)}</span><br>${esc(o.gold_amount)}</td>
+<td>${esc(o.contact)}<br><span class="muted">${esc(o.payment_method)}</span>${proofLink(o.payment_proof_url)}</td>
+<td>${money(o.total_price)}</td>
+<td><span class="pill">${esc(o.status)}</span></td>
+<td><div class="actions">
+<select data-status-for="${esc(o.order_code)}">
+<option value="pending" ${o.status==='pending'?'selected':''}>pending</option>
+<option value="paid" ${o.status==='paid'?'selected':''}>paid</option>
+<option value="processing" ${o.status==='processing'?'selected':''}>processing</option>
+<option value="completed" ${o.status==='completed'?'selected':''}>completed</option>
+<option value="cancelled" ${o.status==='cancelled'?'selected':''}>cancelled</option>
+</select>
+<button class="secondary" data-save-order="${esc(o.order_code)}">Simpan</button>
+</div></td>
+</tr>`).join('');
+}
+
+$('#ordersBody').addEventListener('click',async e=>{
+const code=e.target.dataset.saveOrder;
+if(!code)return;
+const select=$(`[data-status-for="${CSS.escape(code)}"]`);
+try{
+await api('/api/admin/orders/'+encodeURIComponent(code)+'/status',{method:'PATCH',body:JSON.stringify({status:select.value})});
+await Promise.all([loadOrders(),loadStats()]);
+}catch(err){alert(err.message)}
+});
+
+$('#orderFilter').addEventListener('change',loadOrders);
+
+async function loadProducts(){
+const d=await api('/api/admin/products');
+const body=$('#productsBody');
+body.innerHTML=d.products.length?d.products.map(p=>`<tr>
+<td>${esc(p.server)}</td><td>${esc(p.package_amount)}</td><td>${money(p.price_idr)}</td>
+<td>${Number(p.is_active)?'Aktif':'Nonaktif'}</td>
+<td><div class="actions">
+<button class="secondary" data-edit-product="${p.id}">Edit</button>
+<button class="danger" data-disable-product="${p.id}">Nonaktifkan</button>
+</div></td>
+</tr>`).join(''):'<tr><td colspan="5" class="muted">Belum ada paket. Tambahkan paket melalui form.</td></tr>';
+body._products=d.products;
+}
+
+$('#productsBody').addEventListener('click',async e=>{
+const id=e.target.dataset.editProduct;
+if(id){
+const p=$('#productsBody')._products.find(x=>String(x.id)===id);
+const f=$('#productForm');
+f.elements.id.value=p.id;
+f.elements.server.value=p.server;
+f.elements.package_amount.value=p.package_amount;
+f.elements.price_idr.value=p.price_idr;
+f.elements.is_active.value=Number(p.is_active)?'1':'0';
+window.scrollTo({top:0,behavior:'smooth'});
+}
+const disable=e.target.dataset.disableProduct;
+if(disable&&confirm('Nonaktifkan paket ini?')){
+try{
+await api('/api/admin/products/'+disable,{method:'DELETE'});
+await loadProducts();
+}catch(err){alert(err.message)}
+}
+});
+
+$('#productForm').addEventListener('submit',async e=>{
+e.preventDefault();
+const f=new FormData(e.currentTarget);
+const obj=Object.fromEntries(f);
+obj.price_idr=Number(obj.price_idr);
+obj.is_active=obj.is_active==='1';
+try{
+await api('/api/admin/products',{method:'POST',body:JSON.stringify(obj)});
+message($('#productMessage'),'Paket berhasil disimpan.',true);
+e.currentTarget.reset();
+e.currentTarget.elements.id.value='';
+await loadProducts();
+}catch(err){message($('#productMessage'),err.message)}
+});
+
+$('#clearProduct').addEventListener('click',()=>{
+$('#productForm').reset();
+$('#productForm').elements.id.value='';
+$('#productMessage').textContent='';
+});
+
+async function loadStock(){
+const d=await api('/api/admin/stock');
+const by={NA:null,EU:null};
+d.stock.forEach(s=>by[s.server]=s);
+$('#stockCards').innerHTML=['NA','EU'].map(s=>`<div class="stat">
+${s==='NA'?'North America':'Europe'}
+<b>${by[s]?Number(by[s].available_gold).toLocaleString('id-ID'):'Belum diatur'}</b>
+<span class="muted">Gold tersedia</span>
+</div>`).join('');
+}
+
+$('#stockForm').addEventListener('submit',async e=>{
+e.preventDefault();
+const f=new FormData(e.currentTarget);
+const obj=Object.fromEntries(f);
+obj.available_gold=Number(obj.available_gold);
+try{
+await api('/api/admin/stock',{method:'POST',body:JSON.stringify(obj)});
+message($('#stockMessage'),'Stok berhasil diperbarui.',true);
+await loadStock();
+}catch(err){message($('#stockMessage'),err.message)}
+});
+
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
+document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));
+document.querySelectorAll('.section').forEach(x=>x.classList.toggle('active',x.id==='tab-'+b.dataset.tab));
+}));
+
+$('#refreshBtn').addEventListener('click',()=>refreshAll().catch(e=>alert(e.message)));
+start();
+</script>
+</body>
+</html>
