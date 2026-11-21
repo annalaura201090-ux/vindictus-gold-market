@@ -116,56 +116,180 @@ Independent fan project. Not affiliated with Nexon.
 </div>
 
 <script>
-let server="NA";
-let packageName="100 juta Gold";
 
-function changeServer(s,button){
- server=s;
- document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
- button.classList.add("active");
- render();
+let server = "NA";
+let packageName = "";
+let productsData = [];
+let stockData = [];
+
+const API = "https://vindictus-gold-market.powerasepa.workers.dev";
+
+function formatGold(value) {
+  const amount = Number(value);
+
+  if (amount >= 1000000000) {
+    return (amount / 1000000000).toLocaleString("id-ID") + " miliar Gold";
+  }
+
+  if (amount >= 1000000) {
+    return (amount / 1000000).toLocaleString("id-ID") + " juta Gold";
+  }
+
+  return amount.toLocaleString("id-ID") + " Gold";
 }
-function render(){
- const items=["100 juta Gold","200 juta Gold","500 juta Gold","1 miliar Gold"];
- document.getElementById("products").innerHTML=items.map(item=>`
- <div class="card">
-  <div class="muted">${server} SERVER</div>
-  <h3>${item}</h3>
-  <div class="price">Harga konfirmasi admin</div>
-  <p class="muted">Stok dan harga akan diperiksa sebelum transaksi.</p>
-  <button class="btn" onclick="openOrder('${item}')">PESAN SEKARANG</button>
- </div>`).join("");
+
+function formatPrice(value) {
+  return Number(value).toLocaleString("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0
+  });
 }
-function openOrder(item){
- packageName=item;
- document.getElementById("selected").textContent="Server "+server+" • "+item;
- document.getElementById("modal").style.display="flex";
- document.getElementById("result").style.display="none";
+
+async function loadMarket() {
+  const productsBox = document.getElementById("products");
+
+  productsBox.innerHTML = "<p>Memuat harga dan stok Gold...</p>";
+
+  try {
+    const [productsResponse, stockResponse] = await Promise.all([
+      fetch(API + "/api/products"),
+      fetch(API + "/api/stock")
+    ]);
+
+    if (!productsResponse.ok || !stockResponse.ok) {
+      throw new Error("Gagal mengambil data market.");
+    }
+
+    const productsResult = await productsResponse.json();
+    const stockResult = await stockResponse.json();
+
+    productsData = productsResult.products || [];
+    stockData = stockResult.stock || [];
+
+    render();
+
+  } catch (error) {
+    productsBox.innerHTML =
+      "<p>Data market belum dapat dimuat. Silakan coba beberapa saat lagi.</p>";
+  }
 }
-function closeOrder(){
- document.getElementById("modal").style.display="none";
+
+function changeServer(s, button) {
+  server = s;
+
+  document.querySelectorAll(".tab").forEach(x => {
+    x.classList.remove("active");
+  });
+
+  button.classList.add("active");
+
+  render();
 }
-document.getElementById("orderForm").addEventListener("submit",function(e){
- e.preventDefault();
- let message=
- "PERMINTAAN VINDICTUS GOLD MARKET\n"+
- "Server: "+server+"\n"+
- "Paket: "+document.getElementById("amount").value+"\n"+
- "Karakter: "+document.getElementById("character").value+"\n"+
- "Kontak: "+document.getElementById("contact").value+"\n"+
- "Pembayaran: "+document.getElementById("payment").value+"\n"+
- "Catatan: "+document.getElementById("notes").value+"\n"+
- "Status: Menunggu konfirmasi admin.";
- let result=document.getElementById("result");
- result.style.display="block";
- result.innerHTML="<b>Ringkasan pesanan berhasil dibuat.</b><br><br><pre style='white-space:pre-wrap'></pre><button class='btn' onclick='copyOrder()'>SALIN PESANAN</button>";
- result.querySelector("pre").textContent=message;
- window.currentOrder=message;
+
+function render() {
+  const box = document.getElementById("products");
+
+  const items = productsData.filter(item =>
+    item.server === server
+  );
+
+  const stock = stockData.find(item =>
+    item.server === server
+  );
+
+  const availableGold = Number(stock?.available_gold || 0);
+
+  if (items.length === 0) {
+    box.innerHTML =
+      '<div class="card"><h3>' + server + ' Server</h3>' +
+      '<p class="muted">Belum ada paket Gold yang tersedia.</p></div>';
+    return;
+  }
+
+  box.innerHTML = items.map(item => {
+    const amount = Number(item.package_amount);
+    const price = Number(item.price_idr);
+
+    return `
+      <div class="card">
+        <div class="muted">${item.server} SERVER</div>
+        <h3>${formatGold(amount)}</h3>
+        <div class="price">${formatPrice(price)}</div>
+        <p class="muted">
+          Stok tersedia: ${formatGold(availableGold)}
+        </p>
+        <button class="btn"
+          onclick="openOrder('${formatGold(amount)}')">
+          PESAN SEKARANG
+        </button>
+      </div>
+    `;
+  }).join("");
+}
+
+function openOrder(item) {
+  packageName = item;
+
+  document.getElementById("selected").textContent =
+    "Server " + server + " • " + item;
+
+  const amountSelect = document.getElementById("amount");
+
+  amountSelect.innerHTML = "";
+
+  const items = productsData.filter(item =>
+    item.server === server
+  );
+
+  items.forEach(item => {
+    const option = document.createElement("option");
+    option.textContent = formatGold(item.package_amount);
+    option.value = formatGold(item.package_amount);
+    amountSelect.appendChild(option);
+  });
+
+  amountSelect.value = item;
+
+  document.getElementById("modal").style.display = "flex";
+  document.getElementById("result").style.display = "none";
+}
+
+function closeOrder() {
+  document.getElementById("modal").style.display = "none";
+}
+
+document.getElementById("orderForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+
+  const message =
+    "PERMINTAAN VINDICTUS GOLD MARKET\n" +
+    "Server: " + server + "\n" +
+    "Paket: " + document.getElementById("amount").value + "\n" +
+    "Karakter: " + document.getElementById("character").value + "\n" +
+    "Kontak: " + document.getElementById("contact").value + "\n" +
+    "Pembayaran: " + document.getElementById("payment").value + "\n" +
+    "Catatan: " + document.getElementById("notes").value + "\n" +
+    "Status: Menunggu konfirmasi admin.";
+
+  const result = document.getElementById("result");
+
+  result.style.display = "block";
+  result.innerHTML =
+    "<b>Ringkasan pesanan berhasil dibuat.</b><br><br>" +
+    "<pre style='white-space:pre-wrap'></pre>" +
+    "<button class='btn' onclick='copyOrder()'>SALIN PESANAN</button>";
+
+  result.querySelector("pre").textContent = message;
+  window.currentOrder = message;
 });
-function copyOrder(){
- navigator.clipboard.writeText(window.currentOrder).then(()=>alert("Ringkasan pesanan disalin."));
+
+function copyOrder() {
+  navigator.clipboard.writeText(window.currentOrder)
+    .then(() => alert("Ringkasan pesanan disalin."));
 }
-render();
+
+loadMarket();
 </script>
 </body>
 </html>
