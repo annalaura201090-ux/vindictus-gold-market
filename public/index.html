@@ -209,7 +209,7 @@ function openOrder(selectedPackage) {
     option.textContent = formatGold(item.package_amount);
     option.value = Number(item.package_amount);
     amountSelect.appendChild(option);
-  });
+  });  
 
   amountSelect.value = String(selectedPackage);
   document.getElementById("modal").style.display = "flex";
