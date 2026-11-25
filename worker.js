@@ -824,15 +824,31 @@ return json(
       return fail("Nomor pesanan atau status tidak valid.");
     }
 
-    const result = await env.DB.prepare(
-      `UPDATE orders
-      SET status = ?, updated_at = ?
-      WHERE order_code = ?`
-    ).bind(
-      status,
-      nowIso(),
-      orderCode
-    ).run();
+        let result;
+
+    try {
+      result = await env.DB.prepare(
+        `UPDATE orders
+        SET status = ?, updated_at = ?
+        WHERE order_code = ?`
+      ).bind(
+        status,
+        nowIso(),
+        orderCode
+      ).run();
+
+    } catch (error) {
+      if (
+        String(error?.message || "").includes("STOK_GOLD_TIDAK_CUKUP")
+      ) {
+        return fail(
+          "Stok Gold tidak mencukupi untuk menandai pesanan sebagai paid.",
+          409
+        );
+      }
+
+      throw error;
+    }
 
     if (!result.meta?.changes) {
       return fail("Pesanan tidak ditemukan.", 404);
