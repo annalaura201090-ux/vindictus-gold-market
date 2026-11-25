@@ -117,6 +117,7 @@ let server = "NA";
 let productsData = [];
 let stockData = [];
 const API = "https://vindictus-gold-market.powerasepa.workers.dev";
+const WHATSAPP_NUMBER = "6283805152927";
 
 function formatGold(value) {
   const amount = Number(value);
@@ -252,23 +253,48 @@ document.getElementById("orderForm").addEventListener("submit", async function(e
       throw new Error(data.error || "Pesanan gagal disimpan.");
     }
 
+    const selectedProduct = productsData.find(item =>
+      item.server === server &&
+      Number(item.package_amount) === orderData.gold_amount
+    );
+    const totalPrice = Number(selectedProduct?.price_idr || 0);
+
     const message =
       "PERMINTAAN VINDICTUS GOLD MARKET\n" +
       "Nomor Pesanan: " + data.order_code + "\n" +
       "Server: " + server + "\n" +
       "Paket: " + formatGold(orderData.gold_amount) + "\n" +
+      "Harga: " + formatPrice(totalPrice) + "\n" +
       "Karakter: " + orderData.character_name + "\n" +
       "Kontak: " + orderData.contact + "\n" +
       "Pembayaran: " + orderData.payment_method + "\n" +
-      "Catatan: " + orderData.notes + "\n" +
+      "Catatan: " + (orderData.notes || "-") + "\n" +
       "Status: Menunggu konfirmasi admin.";
 
     result.innerHTML =
       "<b>Pesanan berhasil disimpan!</b><br><br>" +
       "<pre style='white-space:pre-wrap'></pre>" +
-      "<button class='btn' onclick='copyOrder()'>SALIN PESANAN</button>";
+      "<button class='btn' id='copyOrderButton' type='button'>SALIN PESANAN</button>";
 
     result.querySelector("pre").textContent = message;
+    document.getElementById("copyOrderButton").addEventListener("click", copyOrder);
+
+    // WhatsApp hanya ditambahkan untuk server NA; alur EU tetap seperti sebelumnya.
+    if (server === "NA") {
+      const whatsappButton = document.createElement("button");
+      whatsappButton.className = "btn";
+      whatsappButton.type = "button";
+      whatsappButton.textContent = "LANJUTKAN KE WHATSAPP";
+      whatsappButton.style.marginLeft = "8px";
+      whatsappButton.addEventListener("click", function() {
+        const whatsappUrl =
+          "https://wa.me/" + WHATSAPP_NUMBER +
+          "?text=" + encodeURIComponent(message);
+        window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      });
+      result.appendChild(whatsappButton);
+    }
+
     result.style.display = "block";
     window.currentOrder = message;
 
